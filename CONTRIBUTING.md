@@ -8,18 +8,46 @@ rules that must stay exact, and decisions already settled. For how to _use_ the 
 
 ## Philosophy
 
-_Fill this in before the library grows past scaffolding. State the one or two rules that should
-survive every future PR — the thing a contributor should know before writing the first line. Two
-examples worth reusing verbatim if they apply:_
+Four rules that should survive every future PR:
 
-- **Zero runtime dependencies**, unless there's a specific reason one earns its place.
-- **Functions over classes**, state as data over hidden mutation, errors as data where a caller is
-  expected to handle them programmatically (vs. exceptions for programmer errors).
+- **Zero runtime dependencies.** A scheduling engine is arithmetic; nothing here earns a dependency.
+- **Functions over classes, data over hidden state.** Every entry point is a pure function: the same
+  input produces the same schedule, the caller's input is never mutated, and nothing is remembered
+  between calls.
+- **Errors are values.** Anything a caller could reasonably hit — a cycle, an unknown predecessor, a
+  date past the end of the calendar — comes back inside a `Result`, never as a thrown exception, and
+  validation reports every problem it finds rather than the first one.
+- **Simple and separated beats clever and compact.** Small modules with one job each, in preference
+  to anything that has to be decoded to be reviewed.
+
+### Settled decisions
+
+- **Dates are integers inside.** A `Day` is the number of days since 1970-01-01. Integers compare,
+  subtract and index; `Date` appears only in `src/day.ts`, to convert once at the boundary. Nothing
+  iterates over `Date` objects, and nothing should start.
+- **The calendar index is precomputed once.** `defineCalendar` walks its range a single time and
+  builds the lookup tables; every calendar question afterwards is an array lookup whose cost does
+  not depend on the distance being moved. A change that reintroduces per-call scanning is a
+  regression even if the tests stay green.
+- **The library knows no holidays.** Which days are worked is always input. No country's calendar,
+  no default holiday list, not even as a convenience export.
+- **Durations count working days inclusively.** A one-day task starts and finishes the same day; a
+  duration of `0` is a milestone. Lag is in working days too, and `0` lag means the next working day.
+- **Unsupported is reported, not approximated.** Dependency types this version does not compute are
+  rejected as issues rather than treated as finish-to-start.
+- **`src/` is grouped by domain, not flat.** `day.ts` and `result.ts` sit at the root; the calendar
+  and the CPM passes each have a directory, because they are two separate subjects and the calendar
+  may eventually leave as its own package. Do not add a third directory for a handful of functions.
 
 ### Non-goals
 
-_List what this library deliberately does not do, and why — so a future "why don't we just add X"
-has an answer already written down instead of being re-litigated from scratch._
+- **Rendering, Gantt components, any UI.** The reason this library exists is that every other
+  implementation buried the maths inside a visual component. Keep the maths free of it.
+- **Resource levelling.** A different and much larger problem — constraint solving rather than graph
+  traversal. It does not belong in the same package.
+- **PERT, Monte Carlo, probabilistic analysis.** Out of scope in every version.
+- **Persistence, I/O, or a notion of "the current date".** The engine is given everything it needs
+  and returns a value; it reads no clock and touches no storage.
 
 ---
 
@@ -29,8 +57,8 @@ has an answer already written down instead of being re-litigated from scratch._
   (e.g. it must extend `Error`).
 - Named exports for everything the library re-exports from `src/index.ts`; a default export only
   if the library has one obvious primary thing to export.
-- Keep `src/` flat until it genuinely hurts. Small focused modules beat one large file, but don't
-  build a directory tree for a handful of functions.
+- Small focused modules beat one large file, but don't build a directory tree for a handful of
+  functions — see the settled decision on how `src/` is grouped.
 - No barrel files other than `src/index.ts`.
 - No comments explaining _what_ the code does — the code says that. Comment only _why_, and only
   for non-obvious decisions (spec quirks, runtime bugs being worked around, a change that was
