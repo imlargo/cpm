@@ -76,11 +76,12 @@ Four rules that should survive every future PR:
   the mock is wrong.
 - Type-level rules get type-level tests: `@ts-expect-error` on a value that must not compile.
   `pnpm typecheck` covers `test/`, so loosening a type fails the build.
-- If the library does real I/O (network, filesystem, timers), consider an `examples/` integration
-  lane once it matters: small scripts that exercise the _built_ `dist/` over the real thing (a
-  local server, a real clock) rather than a mock, run in CI as a separate job. Not scaffolded here
-  because it's shaped by what the library actually touches — add it when a bug slips through a
-  green vitest run because the mock agreed with a wrong assumption.
+- `scripts/smoke.mjs` covers what the vitest suite structurally cannot: it imports the **built**
+  `dist/`, not `src/`, so a broken build (bad bundling, a dropped export) fails there even with a
+  fully green test run. It schedules the same project the README documents and checks the finish
+  date, the critical path and `acometida`'s float, so the published package is verified against the
+  numbers the documentation promises. Keep it plain Node with no syntax past what `engines` in
+  `package.json` claims, since CI also runs it on the oldest Node version that claim covers.
 
 ---
 
@@ -88,10 +89,19 @@ Four rules that should survive every future PR:
 
 Two workflows in `.github/workflows/`:
 
-- **`ci.yml`** — runs on every push to `main` and every PR, on a Node matrix (20/22/24):
-  `format:check`, `lint`, `typecheck`, `test`, `build`, then `pack:check` (`publint` +
-  `@arethetypeswrong/cli`, validating the built package's `exports`/`types` actually resolve the
-  way `package.json` claims).
+- **`ci.yml`** — runs on every push to `main` and every PR, with two jobs:
+  - `check` — `format:check`, `lint`, `typecheck`, `test`, `build`, then `pack:check` (`publint` +
+    `@arethetypeswrong/cli`, validating the built package's `exports`/`types` actually resolve the
+    way `package.json` claims). Runs on a single modern Node version.
+  - `compat` — builds once on a modern Node, then runs `scripts/smoke.mjs` against the built
+    `dist/` on every Node version `engines` in `package.json` claims to support (20/22/24). These
+    two jobs exist on separate Node versions on purpose: **tsdown (the bundler) requires Node
+    `^22.18 || >=24.11` to run at all** — a newer floor than the `>=20` this library promises
+    consumers. Building on an old-enough-to-fail Node isn't a hypothetical; it's the default
+    outcome of running `pnpm build` on the oldest supported version, which is exactly why `compat`
+    builds once on a modern Node and only switches Node versions afterward, to test the artifact
+    rather than the toolchain. If tsdown's own minimum ever rises, bump the `node-version` used to
+    build in both jobs, not the `engines` field — those describe different things.
 - **`release.yml`** — runs on a pushed `v*` tag. Refuses to publish if the tag disagrees with
   `package.json`'s version, or if `CHANGELOG.md` has no section for it. Re-runs the same checks,
   then publishes via **npm trusted publishing (OIDC)** — no `NPM_TOKEN` secret anywhere. The

@@ -1,8 +1,9 @@
 import js from '@eslint/js';
+import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
-export default tseslint.config(
+export default defineConfig(
   { ignores: ['dist/**', 'coverage/**'] },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
@@ -11,7 +12,7 @@ export default tseslint.config(
     files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
-        project: ['./tsconfig.json'],
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -21,8 +22,8 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    // scripts/ is plain Node, run outside the tsconfig'd project.
-    files: ['scripts/**'],
+    // scripts/ and .husky/ are plain Node, run outside the tsconfig'd project.
+    files: ['scripts/**', '.husky/**'],
     languageOptions: {
       globals: {
         console: 'readonly',

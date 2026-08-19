@@ -191,15 +191,16 @@ pnpm check   # format:check + lint + typecheck + test
 pnpm build   # tsdown → dist/ (ESM + .d.mts)
 ```
 
-| Script            | What it does                                 |
-| ----------------- | -------------------------------------------- |
-| `pnpm test`       | Run the suite with Vitest                    |
-| `pnpm test:watch` | Vitest in watch mode                         |
-| `pnpm coverage`   | Coverage with the v8 provider                |
-| `pnpm lint`       | ESLint with type-checked rules               |
-| `pnpm typecheck`  | `tsc --noEmit` over `src` and `test`         |
-| `pnpm format`     | Prettier over the repo                       |
-| `pnpm pack:check` | `publint` + `attw` against the built tarball |
+| Script            | What it does                                                  |
+| ----------------- | ------------------------------------------------------------- |
+| `pnpm test`       | Run the suite with Vitest                                     |
+| `pnpm test:watch` | Vitest in watch mode                                          |
+| `pnpm coverage`   | Coverage with the v8 provider                                 |
+| `pnpm lint`       | ESLint with type-checked rules                                |
+| `pnpm typecheck`  | `tsc --noEmit` over `src` and `test`                          |
+| `pnpm format`     | Prettier over the repo                                        |
+| `pnpm pack:check` | `publint` + `attw` against the built tarball                  |
+| `pnpm smoke`      | Build, then run `scripts/smoke.mjs` against the built `dist/` |
 
 See [CHANGELOG.md](./CHANGELOG.md) for what changed in each release, and
 [CONTRIBUTING.md](./CONTRIBUTING.md) for the design philosophy and behavior rules.

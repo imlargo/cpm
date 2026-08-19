@@ -12,18 +12,14 @@ env:
 
 jobs:
   check:
-    name: Format, lint, types, tests (Node ${{ matrix.node }})
+    name: Format, lint, types, tests, build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['20', '22', '24']
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The pre-commit hook already formats, but a hook is local and skippable
@@ -37,3 +33,32 @@ jobs:
       # Validates the built package's `exports`/`types` actually resolve the way
       # package.json claims, rather than trusting the config was written correctly.
       - run: pnpm pack:check
+
+  compat:
+    name: Built output on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+
+      # tsdown (the bundler) requires Node ^22.18 || >=24.11 to run at all — a much
+      # newer Node than `engines` in package.json promises consumers. Build here on a
+      # modern Node, then switch below to verify the *built output* on the oldest one.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Runs the built dist/ on the oldest version `engines` claims, so the claim is
+      # verified rather than asserted. No test runner: vitest itself needs Node 20.19+,
+      # so this uses plain `node` to also cover any older patch in the matrix.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node scripts/smoke.mjs
