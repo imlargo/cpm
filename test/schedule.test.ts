@@ -149,6 +149,49 @@ describe('lag', () => {
   });
 });
 
+describe('a lag that reaches outside the calendar', () => {
+  const tightCalendar = defineCalendar({
+    ...COLOMBIA_SPEC,
+    from: '2026-02-02', // the project's own start date
+    to: '2026-12-31',
+  });
+
+  it('does not fail a schedule over a constraint that cannot bind', () => {
+    expect(tightCalendar.ok).toBe(true);
+    if (!tightCalendar.ok) return;
+
+    // b may start two days before a finishes, which points before the calendar
+    // begins. Nothing can start before the project does, so it changes nothing.
+    const result = calculateSchedule({
+      calendar: tightCalendar.value,
+      projectStart: '2026-02-02',
+      tasks: [
+        { id: 'a', duration: 1 },
+        { id: 'b', duration: 2, dependencies: [{ predecessorId: 'a', lag: -2 }] },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(taskOf(result.value, 'b').earliestStart).toBe('2026-02-02');
+    expect(taskOf(result.value, 'b').earliestFinish).toBe('2026-02-03');
+  });
+
+  it('never lets a task finish after the project does', () => {
+    // The overlap would let "a" finish three days after "b" starts, but the
+    // project is over when its last task is done, so "a" has no float at all.
+    const result = schedule([
+      { id: 'a', duration: 2 },
+      { id: 'b', duration: 1, dependencies: [{ predecessorId: 'a', lag: -3 }] },
+    ]);
+
+    expect(result.finish).toBe('2026-02-03');
+    expect(taskOf(result, 'a').latestFinish).toBe('2026-02-03');
+    expect(taskOf(result, 'a').totalFloat).toBe(0);
+    expect(taskOf(result, 'a').isCritical).toBe(true);
+  });
+});
+
 describe('the working calendar', () => {
   it('jumps the weekends and the holidays it was given', () => {
     // The documented case: four working days from 29 December 2025.
@@ -281,6 +324,56 @@ describe('invalid input', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.issues[0]?.code).toBe('outside-calendar-range');
+  });
+});
+
+describe('schedules far larger than a spreadsheet', () => {
+  const chainOf = (count: number, closeTheLoop: boolean): Task[] =>
+    Array.from({ length: count }, (_unused, index) => ({
+      id: `t${String(index)}`,
+      duration: 1,
+      dependencies:
+        index === 0
+          ? closeTheLoop
+            ? [{ predecessorId: `t${String(count - 1)}` }]
+            : []
+          : [{ predecessorId: `t${String(index - 1)}` }],
+    }));
+
+  const decades = defineCalendar({ ...COLOMBIA_SPEC, from: '2000-01-01', to: '2090-12-31' });
+
+  it('schedules ten thousand tasks in one chain', () => {
+    expect(decades.ok).toBe(true);
+    if (!decades.ok) return;
+
+    const result = calculateSchedule({
+      calendar: decades.value,
+      projectStart: '2000-01-03',
+      tasks: chainOf(10_000, false),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.duration).toBe(10_000);
+    expect(result.value.criticalPath).toHaveLength(10_000);
+  });
+
+  it('reports a cycle twenty thousand tasks long as data, not as a stack overflow', () => {
+    expect(decades.ok).toBe(true);
+    if (!decades.ok) return;
+
+    const result = calculateSchedule({
+      calendar: decades.value,
+      projectStart: '2000-01-03',
+      tasks: chainOf(20_000, true),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const [issue] = result.issues;
+    expect(issue?.code).toBe('circular-dependency');
+    if (issue?.code !== 'circular-dependency') return;
+    expect(issue.cycle).toHaveLength(20_000);
   });
 });
 

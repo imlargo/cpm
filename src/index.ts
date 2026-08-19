@@ -23,6 +23,7 @@ export {
   Weekday,
   type CalendarIssue,
   type CalendarSpec,
+  type Position,
   type WorkingCalendar,
 } from './calendar/types.js';
 export {
@@ -32,6 +33,7 @@ export {
   isWorkingDay,
   nextWorkingDay,
   previousWorkingDay,
+  workingDayAt,
   workingIndexOf,
 } from './calendar/arithmetic.js';
 

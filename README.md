@@ -104,6 +104,12 @@ that is where this library's speed lives.
 Dates arrive and leave as `YYYY-MM-DD` strings. Inside, every date is an integer — days since
 1970-01-01 — so date maths is integer maths and no `Date` object is ever created in a loop.
 
+The engine goes one step further: it schedules in **positions**, the place of a day in the
+calendar's sequence of working days. In that coordinate one working day later is `+1`, whatever
+weekends and holidays lie in between, so the whole Critical Path Method is integer arithmetic and
+the calendar is touched exactly twice per run — once to place the project's start, once to turn the
+answer back into dates. `workingIndexOf` and `workingDayAt` convert between the two.
+
 The same index is exported for direct use, in both directions:
 
 ```ts
@@ -161,14 +167,15 @@ same reason: running off the end of the calendar is an answer, not a crash.
 | `countWorkingDays(cal, from, to)`                      | Working days in a span, both ends included             |
 | `addWorkingDays(cal, day, count)`                      | Move n working days forward (or backward, if negative) |
 | `nextWorkingDay` / `previousWorkingDay`                | Snap a date onto a working day                         |
-| `isWorkingDay` / `containsDay` / `workingIndexOf`      | Ask the calendar about a single date                   |
+| `isWorkingDay` / `containsDay`                         | Ask the calendar about a single date                   |
+| `workingIndexOf` / `workingDayAt`                      | Date ⇄ position in the sequence of working days        |
 | `parseISODate` / `formatISODate`                       | `YYYY-MM-DD` ⇄ day integer                             |
 | `dayFromDate` / `dayToDate`                            | `Date` ⇄ day integer, via the UTC calendar date        |
 | `weekdayOf(day)`                                       | `0` Sunday … `6` Saturday                              |
 
 Types for all of it — `Task`, `Dependency`, `Schedule`, `ScheduledTask`, `ScheduleIssue`,
-`CalendarSpec`, `WorkingCalendar`, `CalendarIssue`, `Result`, `Day`, `ISODate` — ship with the
-package.
+`CalendarSpec`, `WorkingCalendar`, `CalendarIssue`, `Result`, `Day`, `Position`, `ISODate` — ship
+with the package.
 
 ## Scope
 

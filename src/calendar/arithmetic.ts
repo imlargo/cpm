@@ -1,6 +1,6 @@
 import type { Day } from '../day.js';
 
-import type { WorkingCalendar } from './types.js';
+import type { Position, WorkingCalendar } from './types.js';
 
 /**
  * Date arithmetic over a working calendar.
@@ -22,11 +22,10 @@ export function isWorkingDay(calendar: WorkingCalendar, day: Day): boolean {
 }
 
 /**
- * Position of a working day in the calendar's sequence of working days, counting
- * from `0`. Subtracting two positions gives the working days between two dates,
- * which is how float is measured. `undefined` if the day is not worked.
+ * Where a working day sits in the calendar's sequence of working days.
+ * `undefined` if the day is not worked. The inverse of {@link workingDayAt}.
  */
-export function workingIndexOf(calendar: WorkingCalendar, day: Day): number | undefined {
+export function workingIndexOf(calendar: WorkingCalendar, day: Day): Position | undefined {
   if (!isWorkingDay(calendar, day)) return undefined;
   return calendar.workingBefore[day - calendar.from];
 }
@@ -90,8 +89,11 @@ export function countWorkingDays(
   return throughEnd - before;
 }
 
-/** The working day at the given position in the calendar's sequence. */
-function workingDayAt(calendar: WorkingCalendar, index: number): Day | undefined {
-  if (index < 0 || index >= calendar.workingDays.length) return undefined;
-  return calendar.workingDays[index];
+/**
+ * The working day at that position of the calendar's sequence. `undefined` if
+ * the position is outside it. The inverse of {@link workingIndexOf}.
+ */
+export function workingDayAt(calendar: WorkingCalendar, position: Position): Day | undefined {
+  if (position < 0 || position >= calendar.workingDays.length) return undefined;
+  return calendar.workingDays[position];
 }

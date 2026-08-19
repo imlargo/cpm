@@ -33,6 +33,15 @@ export interface CalendarSpec {
 }
 
 /**
+ * A place in the calendar's sequence of working days, counting from `0`.
+ *
+ * Positions are the coordinate the scheduling passes work in: one working day
+ * later is `+1`, whatever weekends and holidays lie in between, so a lag is a
+ * plain addition and no date arithmetic happens inside a loop.
+ */
+export type Position = number;
+
+/**
  * A calendar with its index already computed.
  *
  * Built once by {@link defineCalendar}, then reused: every calendar operation is

@@ -1,23 +1,26 @@
-import type { Day } from '../day.js';
+import type { Position } from '../calendar/types.js';
 import { failure, success, type Result } from '../result.js';
 
-import { DependencyType, type ScheduleIssue, type Task } from './types.js';
+import { DependencyType, type Dependency, type ScheduleIssue, type Task } from './types.js';
 
 /**
  * The run-local graph the passes work on.
  *
  * `buildGraph` is called once per run and builds fresh nodes, so the passes can
  * fill their results straight into them. The caller's tasks are only read.
+ *
+ * The four dates are working-day positions while the passes run; `schedule.ts`
+ * turns them into calendar dates once, at the end.
  */
 export interface Node {
   readonly id: string;
   readonly duration: number;
   readonly predecessors: Link[];
   readonly successors: Link[];
-  earliestStart: Day;
-  earliestFinish: Day;
-  latestStart: Day;
-  latestFinish: Day;
+  earliestStart: Position;
+  earliestFinish: Position;
+  latestStart: Position;
+  latestFinish: Position;
   totalFloat: number;
   freeFloat: number;
 }
@@ -79,7 +82,7 @@ export function buildGraph(tasks: readonly Task[]): Result<Node[], ScheduleIssue
 
 function buildLink(
   taskId: string,
-  dependency: { predecessorId: string; type?: string; lag?: number },
+  dependency: Dependency,
   successor: Node,
   byId: ReadonlyMap<string, Node>,
   issues: ScheduleIssue[],

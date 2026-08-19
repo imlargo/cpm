@@ -25,6 +25,12 @@ Four rules that should survive every future PR:
 - **Dates are integers inside.** A `Day` is the number of days since 1970-01-01. Integers compare,
   subtract and index; `Date` appears only in `src/day.ts`, to convert once at the boundary. Nothing
   iterates over `Date` objects, and nothing should start.
+- **The passes work in working-day positions, not dates.** `defineCalendar`'s index gives every
+  working day a position counting from zero; the forward pass, the backward pass and the float
+  calculation are integer arithmetic on those positions, and dates come back only at the end. This
+  is what makes a lag a plain addition and removes every edge case around weekends, holidays and
+  the ends of the calendar from the algorithms themselves. Do not reintroduce date arithmetic into
+  a pass.
 - **The calendar index is precomputed once.** `defineCalendar` walks its range a single time and
   builds the lookup tables; every calendar question afterwards is an array lookup whose cost does
   not depend on the distance being moved. A change that reintroduces per-call scanning is a
@@ -33,6 +39,13 @@ Four rules that should survive every future PR:
   no default holiday list, not even as a convenience export.
 - **Durations count working days inclusively.** A one-day task starts and finishes the same day; a
   duration of `0` is a milestone. Lag is in working days too, and `0` lag means the next working day.
+- **No task may finish after the project does.** The backward pass starts every task at the
+  project's finish and takes the minimum against what its successors allow. Without that cap a
+  negative lag lets a predecessor finish after the project is over and claim float it does not
+  have — a property test against a naive reference implementation is what caught it.
+- **Never recurse over the task graph.** Ten thousand tasks in one chain is a real schedule, and
+  recursion over it overflows the stack — which would be an exception, from a library that promises
+  none. Cycle detection walks with an explicit stack for exactly this reason.
 - **Unsupported is reported, not approximated.** Dependency types this version does not compute are
   rejected as issues rather than treated as finish-to-start.
 - **`src/` is grouped by domain, not flat.** `day.ts` and `result.ts` sit at the root; the calendar

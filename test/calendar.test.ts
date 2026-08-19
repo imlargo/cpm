@@ -9,6 +9,8 @@ import {
   nextWorkingDay,
   previousWorkingDay,
   Weekday,
+  workingDayAt,
+  workingIndexOf,
   type CalendarSpec,
 } from '../src/index.js';
 
@@ -123,6 +125,26 @@ describe('addWorkingDays', () => {
     expect(addWorkingDays(calendar, day('2027-12-31'), 1)).toBeUndefined();
     expect(addWorkingDays(calendar, day('2025-01-01'), -1)).toBeUndefined();
     expect(addWorkingDays(calendar, day('2026-02-02'), 1.5)).toBeUndefined();
+  });
+});
+
+describe('workingIndexOf and workingDayAt', () => {
+  it('are inverses of each other', () => {
+    const position = workingIndexOf(calendar, day('2026-02-05'));
+    expect(position).toBeTypeOf('number');
+    expect(iso(workingDayAt(calendar, position ?? -1))).toBe('2026-02-05');
+  });
+
+  it('count working days only, skipping what is not worked', () => {
+    const friday = workingIndexOf(calendar, day('2026-02-06')) ?? 0;
+    // The next position is the Monday: the weekend has no position at all.
+    expect(iso(workingDayAt(calendar, friday + 1))).toBe('2026-02-09');
+    expect(workingIndexOf(calendar, day('2026-02-07'))).toBeUndefined();
+  });
+
+  it('report positions outside the calendar', () => {
+    expect(workingDayAt(calendar, -1)).toBeUndefined();
+    expect(workingDayAt(calendar, 10_000_000)).toBeUndefined();
   });
 });
 
