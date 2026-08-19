@@ -3,4 +3,4 @@
  *
  * Scaffolding only: replace this with the library's real exports.
  */
-export const PACKAGE_NAME = '{{PACKAGE_NAME}}';
+export const PACKAGE_NAME = '@kora/critical-path-method';

@@ -1,20 +1,33 @@
 {
-  "name": "{{PACKAGE_NAME}}",
+  "name": "@kora/critical-path-method",
   "type": "module",
   "version": "0.0.0",
-  "description": "{{PACKAGE_DESCRIPTION}}",
+  "description": "Critical Path Method engine in TypeScript. Pure functions, zero runtime dependencies, injectable working calendar.",
   "license": "MIT",
-  "author": "{{AUTHOR_NAME}}",
+  "author": "imlargo",
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/{{GITHUB_OWNER}}/{{REPO_NAME}}.git"
+    "url": "git+https://github.com/imlargo/cpm.git"
   },
-  "homepage": "https://github.com/{{GITHUB_OWNER}}/{{REPO_NAME}}#readme",
+  "homepage": "https://github.com/imlargo/cpm#readme",
   "bugs": {
-    "url": "https://github.com/{{GITHUB_OWNER}}/{{REPO_NAME}}/issues"
+    "url": "https://github.com/imlargo/cpm/issues"
   },
-  "keywords": [],
+  "keywords": [
+    "cpm",
+    "critical-path",
+    "critical-path-method",
+    "scheduling",
+    "project-management",
+    "gantt",
+    "pert",
+    "float",
+    "slack",
+    "working-calendar",
+    "dependency-graph",
+    "typescript"
+  ],
   "publishConfig": {
     "access": "public"
   },

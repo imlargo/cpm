@@ -1,18 +1,18 @@
-# {{PACKAGE_NAME}}
+# @kora/critical-path-method
 
-[![CI](https://github.com/{{GITHUB_OWNER}}/{{REPO_NAME}}/actions/workflows/ci.yml/badge.svg)](https://github.com/{{GITHUB_OWNER}}/{{REPO_NAME}}/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/{{PACKAGE_NAME}})](https://www.npmjs.com/package/{{PACKAGE_NAME}})
+[![CI](https://github.com/imlargo/cpm/actions/workflows/ci.yml/badge.svg)](https://github.com/imlargo/cpm/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@kora/critical-path-method)](https://www.npmjs.com/package/@kora/critical-path-method)
 
-{{PACKAGE_DESCRIPTION}}
+Critical Path Method engine in TypeScript. Pure functions, zero runtime dependencies, injectable working calendar.
 
 ```bash
-pnpm add {{PACKAGE_NAME}}
+pnpm add @kora/critical-path-method
 ```
 
 ## Usage
 
 ```ts
-import { PACKAGE_NAME } from '{{PACKAGE_NAME}}';
+import { PACKAGE_NAME } from '@kora/critical-path-method';
 ```
 
 ## Development
