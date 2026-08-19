@@ -1,0 +1,9 @@
+# Build output — tsdown writes it, nobody reads the diff.
+dist
+coverage
+
+# pnpm owns this file's formatting and rewrites it on every install. Formatting it
+# here would mean fighting pnpm for it on every lockfile change.
+pnpm-lock.yaml
+
+node_modules
