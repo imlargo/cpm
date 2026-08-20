@@ -14,16 +14,22 @@ export function computeFloats(order: readonly Node[]): void {
 
 /**
  * Free float: how much a task can slip before the earliest start of any
- * successor moves. A task with no successors has only the project's end ahead
- * of it, which is what its total float already measures.
+ * successor moves.
+ *
+ * It starts at the total float and only ever narrows, which covers two cases at
+ * once. A task with no successors has nothing but the project's end ahead of it,
+ * which total float already measures. And a task whose successor may start
+ * before it finishes — a lead, written as a negative lag — could otherwise be
+ * told it has more free float than total float, promising room that delaying it
+ * would take out of the project's own finish date.
  */
 function freeFloatOf(node: Node): number {
-  let free: number | undefined;
+  let free = node.totalFloat;
 
   for (const link of node.successors) {
     const slack = link.successor.earliestStart - startAfter(node.earliestFinish, link.lag);
-    if (free === undefined || slack < free) free = slack;
+    if (slack < free) free = slack;
   }
 
-  return free ?? node.totalFloat;
+  return free;
 }

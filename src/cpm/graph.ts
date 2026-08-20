@@ -17,6 +17,8 @@ export interface Node {
   readonly duration: number;
   readonly predecessors: Link[];
   readonly successors: Link[];
+  /** Predecessors still to be ordered, while the topological walk runs. */
+  pendingPredecessors: number;
   earliestStart: Position;
   earliestFinish: Position;
   latestStart: Position;
@@ -142,6 +144,7 @@ function createNode(id: string, duration: number): Node {
     duration,
     predecessors: [],
     successors: [],
+    pendingPredecessors: 0,
     earliestStart: 0,
     earliestFinish: 0,
     latestStart: 0,

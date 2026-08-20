@@ -43,6 +43,12 @@ Four rules that should survive every future PR:
   project's finish and takes the minimum against what its successors allow. Without that cap a
   negative lag lets a predecessor finish after the project is over and claim float it does not
   have — a property test against a naive reference implementation is what caught it.
+- **Free float never exceeds total float.** Whatever a successor tolerates, a task cannot take room
+  that its own finish would charge to the project's finish date. Leads make the two disagree, and
+  the smaller number is the honest one.
+- **Dates convert by arithmetic, not by `Date`.** `day.ts` uses Hinnant's `days_from_civil` and
+  `civil_from_days`; `Date` appears only in the two interop helpers. This is a third of the run time
+  on a large schedule, and it is verified against `Date` over more than a million days.
 - **Never recurse over the task graph.** Ten thousand tasks in one chain is a real schedule, and
   recursion over it overflows the stack — which would be an exception, from a library that promises
   none. Cycle detection walks with an explicit stack for exactly this reason.

@@ -109,7 +109,12 @@ export function referenceSchedule(
 
   for (const ref of refs.values()) {
     const totalFloat = ref.latestStart - ref.start;
-    const slacks = ref.links.map((link) => link.to.start - (ref.finish + 1 + link.lag));
+    // Free float is capped by total float: a lead can leave a task room its
+    // successors do not mind but the project's own finish date does.
+    const slacks = [
+      totalFloat,
+      ...ref.links.map((link) => link.to.start - (ref.finish + 1 + link.lag)),
+    ];
 
     scheduled.set(ref.id, {
       earliestStart: dateAt(ref.start),
@@ -117,7 +122,7 @@ export function referenceSchedule(
       latestStart: dateAt(ref.latestStart),
       latestFinish: dateAt(ref.latestFinish),
       totalFloat,
-      freeFloat: slacks.length === 0 ? totalFloat : Math.min(...slacks),
+      freeFloat: Math.min(...slacks),
       isCritical: totalFloat === 0,
     });
   }

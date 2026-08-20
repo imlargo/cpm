@@ -102,6 +102,27 @@ describe('float', () => {
     expect(taskOf(result, 'b').freeFloat).toBe(0);
   });
 
+  it('never reports more free float than total float', () => {
+    // "inspect" may run up to two days into "ready" — a lead — so its successor
+    // would let it slip five days. Its own finish would push the project on the
+    // fifth, so four is the honest answer.
+    const result = schedule([
+      { id: 'pour', duration: 5 },
+      { id: 'inspect', duration: 1 },
+      {
+        id: 'ready',
+        duration: 0,
+        dependencies: [
+          { predecessorId: 'pour', lag: -1 },
+          { predecessorId: 'inspect', lag: -2 },
+        ],
+      },
+    ]);
+
+    expect(taskOf(result, 'inspect').totalFloat).toBe(4);
+    expect(taskOf(result, 'inspect').freeFloat).toBe(4);
+  });
+
   it('measures a trailing task against the project finish', () => {
     const result = schedule([
       { id: 'long', duration: 5 },

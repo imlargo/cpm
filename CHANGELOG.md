@@ -25,7 +25,9 @@ outside does not get a line here — the git history already has it.
   `workingDayAt` expose the calendar's own coordinate — the position of a day in its sequence of
   working days — which is what the engine schedules in.
 - Float follows the rule that the project is not over until its last task is: a task's latest finish
-  never runs past the project's finish, even where a negative lag would otherwise allow it.
+  never runs past the project's finish, and its free float never exceeds its total float, even where
+  a lead — a negative lag — would otherwise let a task claim room the project's own finish date has
+  to pay for.
 - Problems in the input are returned, never thrown: both entry points answer with a `Result` whose
   issues carry a `code`, the ids involved and a human-readable `message`, and validation reports
   every problem it finds instead of stopping at the first. A circular dependency comes back as

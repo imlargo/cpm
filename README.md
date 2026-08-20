@@ -79,7 +79,9 @@ The **Critical Path Method** answers two questions about that set:
 
 **Free float** is the stricter cousin: how long a task can slip before the _next_ task has to move,
 rather than before the project does. A task can have three days of total float but zero free float,
-which means its slack is shared with the tasks after it rather than its own to spend.
+which means its slack is shared with the tasks after it rather than its own to spend. Free float
+never exceeds total float — room your successors would tolerate is not room you have if taking it
+would push the project's own finish date.
 
 A task with duration `0` is a **milestone**: it starts and finishes on the same day and marks an
 event rather than work.
@@ -177,6 +179,23 @@ Types for all of it — `Task`, `Dependency`, `Schedule`, `ScheduledTask`, `Sche
 `CalendarSpec`, `WorkingCalendar`, `CalendarIssue`, `Result`, `Day`, `Position`, `ISODate` — ship
 with the package.
 
+## Performance
+
+Building the calendar walks its range once; everything after that is integer arithmetic and array
+lookups, so cost grows with the number of tasks and dependencies, not with how far dates are being
+moved or how many holidays the calendar holds. Measured on a laptop under Node 25:
+
+| Work                                           | Time    |
+| ---------------------------------------------- | ------- |
+| `defineCalendar` over 91 years, 900 holidays   | ~1.2 ms |
+| `calculateSchedule`, 1 000 tasks, 3 links each | ~1 ms   |
+| `calculateSchedule`, 10 000 tasks              | ~8 ms   |
+| `calculateSchedule`, 50 000 tasks              | ~27 ms  |
+
+Nothing in the library recurses over the task graph, so a chain of tens of thousands of tasks is
+walked, not stacked — including the cycle detection, which has to run on exactly the pathological
+input that would otherwise overflow.
+
 ## Scope
 
 **In, today:** finish-to-start dependencies with lag, forward and backward pass, total and free
@@ -189,6 +208,21 @@ compute is reported as `unsupported-dependency-type` rather than quietly treated
 
 **Never here:** rendering or UI of any kind, resource levelling, PERT and probabilistic analysis,
 persistence.
+
+## Where the definitions come from
+
+The arithmetic is not invented here. Total float as `LS - ES`, free float as the earliest successor
+start minus this task's finish minus one — the minus one being the inclusive day counting this
+library uses — and free float equal to total float for a task with no successors, all follow the
+standard treatment ([PMI][pmi], [PM Study Circle][float]). The rule that a task's latest finish is
+capped by the project's finish is what keeps a lead — a negative lag — from
+[distorting float][leads] into room the project does not have. The date conversions are Howard
+Hinnant's [`days_from_civil` and `civil_from_days`][hinnant].
+
+[pmi]: https://www.pmi.org/learning/library/basics-cpm-scheduling-software-axon-8170
+[float]: https://pmstudycircle.com/total-float-versus-free-float/
+[leads]: https://tensix.com/the-dcma-14-point-assessment-and-negative-lag-lead/
+[hinnant]: https://howardhinnant.github.io/date_algorithms.html
 
 ## Development
 
