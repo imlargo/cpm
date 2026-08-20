@@ -1,4 +1,4 @@
-# Contributing to @kora/critical-path-method
+# Contributing to @korastd/critical-path-method
 
 This document is for anyone changing the source: the philosophy behind the design, the behavior
 rules that must stay exact, and decisions already settled. For how to _use_ the library, see

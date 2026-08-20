@@ -1,5 +1,5 @@
 {
-  "name": "@kora/critical-path-method",
+  "name": "@korastd/critical-path-method",
   "type": "module",
   "version": "0.1.0",
   "description": "Critical Path Method engine in TypeScript. Pure functions, zero runtime dependencies, injectable working calendar.",

@@ -1,7 +1,7 @@
-# @kora/critical-path-method
+# @korastd/critical-path-method
 
 [![CI](https://github.com/imlargo/cpm/actions/workflows/ci.yml/badge.svg)](https://github.com/imlargo/cpm/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@kora/critical-path-method)](https://www.npmjs.com/package/@kora/critical-path-method)
+[![npm](https://img.shields.io/npm/v/@korastd/critical-path-method)](https://www.npmjs.com/package/@korastd/critical-path-method)
 
 Critical Path Method engine in TypeScript. Pure functions, zero runtime dependencies, injectable
 working calendar.
@@ -11,13 +11,13 @@ dependencies, get back the dates, the float and the critical path. No rendering,
 opinion about which days your country takes off.
 
 ```bash
-pnpm add @kora/critical-path-method
+pnpm add @korastd/critical-path-method
 ```
 
 ## Usage
 
 ```ts
-import { calculateSchedule, defineCalendar, Weekday } from '@kora/critical-path-method';
+import { calculateSchedule, defineCalendar, Weekday } from '@korastd/critical-path-method';
 
 // 1. Describe the working calendar. The library ships no holidays: these are yours.
 const calendar = defineCalendar({
@@ -120,7 +120,7 @@ import {
   countWorkingDays,
   formatISODate,
   parseISODate,
-} from '@kora/critical-path-method';
+} from '@korastd/critical-path-method';
 
 const from = parseISODate('2025-12-29');
 const to = parseISODate('2026-01-02');
