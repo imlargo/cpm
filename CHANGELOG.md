@@ -10,7 +10,7 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-08-19
+## [0.1.0] - 2026-08-20
 
 ### Added
 
