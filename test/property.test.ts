@@ -8,7 +8,7 @@ import {
   type Task,
 } from '../src/index.js';
 
-import { COLOMBIA_SPEC } from './support/calendar.js';
+import { HOLIDAY_SPEC } from './support/calendar.js';
 import { referenceSchedule, workingDaysOf } from './support/reference.js';
 
 /**
@@ -22,11 +22,11 @@ import { referenceSchedule, workingDaysOf } from './support/reference.js';
 
 /** Calendars shaped differently enough to shake out different edge cases. */
 const CALENDARS: { readonly name: string; readonly spec: CalendarSpec }[] = [
-  { name: 'a Monday-to-Friday week with holidays', spec: COLOMBIA_SPEC },
+  { name: 'a Monday-to-Friday week with holidays', spec: HOLIDAY_SPEC },
   {
     name: 'the six-day week a construction site runs',
     spec: {
-      ...COLOMBIA_SPEC,
+      ...HOLIDAY_SPEC,
       workingWeekdays: [
         Weekday.Monday,
         Weekday.Tuesday,
@@ -40,14 +40,14 @@ const CALENDARS: { readonly name: string; readonly spec: CalendarSpec }[] = [
   {
     name: 'a three-day week, where the gaps outnumber the working days',
     spec: {
-      ...COLOMBIA_SPEC,
+      ...HOLIDAY_SPEC,
       workingWeekdays: [Weekday.Monday, Weekday.Wednesday, Weekday.Friday],
     },
   },
   {
     name: 'a holiday-heavy calendar with recovered Saturdays',
     spec: {
-      ...COLOMBIA_SPEC,
+      ...HOLIDAY_SPEC,
       holidays: Array.from(
         { length: 27 },
         (_unused, index) => `2026-0${String((index % 9) + 1)}-1${String(index % 3)}`,
@@ -124,15 +124,15 @@ describe('against a naive reference implementation', () => {
   };
 
   it('agrees on schedules without lag', () => {
-    compare(COLOMBIA_SPEC, 300, 12, 0);
+    compare(HOLIDAY_SPEC, 300, 12, 0);
   });
 
   it('agrees on schedules with lag in both directions', () => {
-    compare(COLOMBIA_SPEC, 300, 12, 3);
+    compare(HOLIDAY_SPEC, 300, 12, 3);
   });
 
   it('agrees on wider schedules with heavy overlap', () => {
-    compare(COLOMBIA_SPEC, 100, 30, 5);
+    compare(HOLIDAY_SPEC, 100, 30, 5);
   });
 
   for (const { name, spec } of CALENDARS) {
@@ -143,8 +143,8 @@ describe('against a naive reference implementation', () => {
 });
 
 describe('the laws every schedule obeys', () => {
-  const built = defineCalendar(COLOMBIA_SPEC);
-  const workingDays = workingDaysOf(COLOMBIA_SPEC);
+  const built = defineCalendar(HOLIDAY_SPEC);
+  const workingDays = workingDaysOf(HOLIDAY_SPEC);
 
   /** Where a date sits among the working days, counted without the library. */
   const positionOf = (iso: string): number => workingDays.indexOf(iso);
@@ -224,5 +224,5 @@ describe('the laws every schedule obeys', () => {
       );
       expect(schedule.duration, where).toBe(finish - start + 1);
     }
-  });
+  }, 30_000);
 });

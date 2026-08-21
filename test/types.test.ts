@@ -8,9 +8,9 @@ import {
   type Task,
 } from '../src/index.js';
 
-import { colombiaCalendar } from './support/calendar.js';
+import { fixtureCalendar } from './support/calendar.js';
 
-const calendar = colombiaCalendar();
+const calendar = fixtureCalendar();
 
 describe('the public types', () => {
   it('requires every task to carry a duration', () => {

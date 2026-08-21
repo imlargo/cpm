@@ -10,6 +10,51 @@ outside does not get a line here — the git history already has it.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-21
+
+The engine is now a general activity network rather than a finish-to-start one. Every temporal
+constraint — any relation type, a minimum lag, a maximum lag, a date bound — is reduced to the same
+statement about two start times, so one algorithm computes them all instead of one per case.
+
+### Added
+
+- **All four relation types.** `type` on a dependency accepts `'FS'`, `'SS'`, `'FF'` and `'SF'`, and
+  each is computed rather than rejected. The weight a relation becomes is one expression covering all
+  four; the standardization is Bartusch, Möhring and Radermacher (1988).
+- **Maximum lags.** `maxLag` bounds how _late_ a relation may be, where `lag` bounds how early. The
+  two together pin an activity to a window around another one — `{ lag: 0, maxLag: 0 }` makes a
+  successor follow its predecessor exactly.
+- **Date windows.** `window` on an activity takes any of `startNotBefore`, `startNotAfter`,
+  `finishNotBefore` and `finishNotAfter`. They are the same kind of constraint as a lag, stated
+  against the project's start, so they cost no separate machinery. A date that is not a working day
+  moves inward to the nearest one.
+- **`analyzeSensitivity`** reports, for each activity, how the project's finish answers to it taking
+  one working day more or less. Worth asking because relations attaching to both ends of an activity
+  make "longer" and "later" come apart: a `finish → finish` relation followed by a `start → start` one
+  is enough for a longer activity to pull the finish _earlier_. Measured by re-solving, so it costs
+  two solves per activity, and a direction that leaves no satisfiable schedule reports `Infinity`.
+
+### Changed
+
+- **A circle in the dependencies is no longer automatically an error.** With constraints able to point
+  backwards, activities pinned to each other form circles that are perfectly satisfiable. What makes a
+  schedule impossible is a circle whose lags sum to more than zero. `circular-dependency` now carries
+  `excess`, the working days by which the circle overshoots, and schedules that earlier versions
+  refused — a lead and a lag that cancel out — now compute.
+- One impossible circle is reported per run rather than every circle in the network: it is the proof
+  the schedule cannot exist, and fixing it reveals any others.
+- `criticalPath` is ordered by earliest start rather than by dependency order, which agrees with it
+  wherever both are defined and stays meaningful when a maximum lag makes dependency order impossible.
+
+### Removed
+
+- The `unsupported-dependency-type` issue, since no dependency type is unsupported any more.
+
+### Fixed
+
+- Large networks with maximum lags no longer take time proportional to activities times relations:
+  sweeps alternate direction, and the search for an impossible circle runs on doubling rounds.
+
 ## [0.1.0] - 2026-08-20
 
 ### Added

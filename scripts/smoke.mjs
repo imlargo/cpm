@@ -2,7 +2,7 @@
 // export) fails here even with a fully green vitest run. Plain Node, no test runner,
 // and no syntax past what `engines` in package.json claims — this runs on the oldest
 // supported Node, which the build toolchain itself does not.
-import { calculateSchedule, defineCalendar, Weekday } from '../dist/index.mjs';
+import { analyzeSensitivity, calculateSchedule, defineCalendar, Weekday } from '../dist/index.mjs';
 
 const fail = (message) => {
   console.error(`smoke test failed: ${message}`);
@@ -26,45 +26,45 @@ if (!calendar.ok) {
   fail(`defineCalendar rejected a valid spec: ${calendar.issues.map((i) => i.message).join('; ')}`);
 }
 
-// The same project as the README's usage example, so the built package is checked
+// The same network as the README's usage example, so the built package is checked
 // against the numbers the documentation promises rather than against itself.
-const result = calculateSchedule({
+const input = {
   calendar: calendar.value,
   projectStart: '2025-12-29',
   tasks: [
-    { id: 'excavacion', duration: 4 },
-    { id: 'cimentacion', duration: 6, dependencies: [{ predecessorId: 'excavacion' }] },
-    { id: 'acometida', duration: 3, dependencies: [{ predecessorId: 'excavacion' }] },
-    {
-      id: 'estructura',
-      duration: 8,
-      dependencies: [{ predecessorId: 'cimentacion' }, { predecessorId: 'acometida' }],
-    },
+    { id: 'a', duration: 4 },
+    { id: 'b', duration: 6, dependencies: [{ predecessorId: 'a' }] },
+    { id: 'c', duration: 3, dependencies: [{ predecessorId: 'a' }] },
+    { id: 'd', duration: 8, dependencies: [{ predecessorId: 'b' }, { predecessorId: 'c' }] },
+  ],
+};
+
+const result = calculateSchedule(input);
+if (!result.ok)
+  fail(`calculateSchedule returned issues: ${result.issues.map((i) => i.code).join(', ')}`);
+
+if (result.value.finish !== '2026-01-23')
+  fail(`finish is ${result.value.finish}, expected 2026-01-23`);
+if (result.value.duration !== 18) fail(`duration is ${result.value.duration}, expected 18`);
+
+const c = result.value.tasks.find((task) => task.id === 'c');
+if (c.totalFloat !== 3) fail(`c has ${c.totalFloat} days of float, expected 3`);
+if (result.value.criticalPath.join(',') !== 'a,b,d')
+  fail(`critical path is ${result.value.criticalPath.join(',')}`);
+
+// The generalized relations and the analysis reach the built output too.
+const overlapped = calculateSchedule({
+  ...input,
+  tasks: [
+    { id: 'a', duration: 4 },
+    { id: 'b', duration: 6, dependencies: [{ predecessorId: 'a', type: 'SS', lag: 2 }] },
   ],
 });
+if (!overlapped.ok) fail('a start-to-start relation was rejected');
 
-if (!result.ok) {
-  fail(
-    `calculateSchedule rejected a valid project: ${result.issues.map((i) => i.message).join('; ')}`,
-  );
-}
+const sensitivity = analyzeSensitivity(input);
+if (!sensitivity.ok) fail('analyzeSensitivity returned issues');
+if (sensitivity.value.find((s) => s.id === 'a').ifOneDayLonger !== 1)
+  fail('sensitivity of a is wrong');
 
-const { finish, criticalPath, tasks } = result.value;
-
-if (finish !== '2026-01-23') {
-  fail(`expected the project to finish on 2026-01-23, got ${finish}`);
-}
-
-const expectedPath = 'excavacion,cimentacion,estructura';
-if (criticalPath.join(',') !== expectedPath) {
-  fail(`expected critical path ${expectedPath}, got ${criticalPath.join(',')}`);
-}
-
-const acometida = tasks.find((task) => task.id === 'acometida');
-if (acometida === undefined || acometida.totalFloat !== 3 || acometida.isCritical) {
-  fail(
-    'expected acometida to carry three working days of total float and stay off the critical path',
-  );
-}
-
-console.log(`smoke test passed: dist/ scheduled the example project to finish on ${finish}`);
+console.log(`smoke test passed: dist/ scheduled the example to finish on ${result.value.finish}`);

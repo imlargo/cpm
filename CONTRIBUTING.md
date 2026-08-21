@@ -25,6 +25,13 @@ Four rules that should survive every future PR:
 - **Dates are integers inside.** A `Day` is the number of days since 1970-01-01. Integers compare,
   subtract and index; `Date` appears only in `src/day.ts`, to convert once at the boundary. Nothing
   iterates over `Date` objects, and nothing should start.
+- **Every constraint is one shape.** Any relation type, a minimum lag, a maximum lag, a date bound —
+  all of it reduces to `start(j) - start(i) >= lag`, an edge weighted by that lag, and the schedule is
+  the longest paths through the result. Adding a temporal feature means adding a weight formula, never
+  a second algorithm. If a change needs its own pass, the reduction was not found yet.
+- **A circle is only an error when its lags sum above zero.** Constraints that point backwards make
+  circles legitimate; what no schedule can satisfy is one that gains length on every lap. Reporting
+  every circle as a fault would refuse schedules that exist.
 - **The passes work in working-day positions, not dates.** `defineCalendar`'s index gives every
   working day a position counting from zero; the forward pass, the backward pass and the float
   calculation are integer arithmetic on those positions, and dates come back only at the end. This
@@ -43,6 +50,10 @@ Four rules that should survive every future PR:
   project's finish and takes the minimum against what its successors allow. Without that cap a
   negative lag lets a predecessor finish after the project is over and claim float it does not
   have — a property test against a naive reference implementation is what caught it.
+- **Nothing recurses over the network, and nothing detects circles by counting relaxations.** A node
+  can improve many more times than there are nodes without any circle being to blame; rounds of
+  relaxation are what make the bound sound, and a circle among the edges values arrived by is what
+  makes early detection sound.
 - **Free float never exceeds total float.** Whatever a successor tolerates, a task cannot take room
   that its own finish would charge to the project's finish date. Leads make the two disagree, and
   the smaller number is the honest one.
@@ -60,6 +71,12 @@ Four rules that should survive every future PR:
 
 ### Non-goals
 
+- **Any knowledge of what the activities are.** This library is the arithmetic of an activity network
+  and nothing else. It has no notion of trades, resources, progress, cost, hierarchy or a current
+  date, and no vocabulary from any industry — not in the code, not in the fixtures, not in the
+  examples. A feature that needs to know what an activity _means_ belongs to whoever knows.
+- **Rolling a hierarchy up to summary activities.** It is `min` of the children's starts and `max` of
+  their finishes: a grouping over the answer, with no critical-path content in it.
 - **Rendering, Gantt components, any UI.** The reason this library exists is that every other
   implementation buried the maths inside a visual component. Keep the maths free of it.
 - **Resource levelling.** A different and much larger problem — constraint solving rather than graph

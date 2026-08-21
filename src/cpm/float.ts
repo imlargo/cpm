@@ -1,33 +1,32 @@
-import type { Node } from './graph.js';
-import { startAfter } from './rules.js';
+import type { Network, Node } from './network.js';
 
 /**
- * Float: how much room each task has to slip, in working days.
+ * Float: how much room each activity has, in working days.
  */
-export function computeFloats(order: readonly Node[]): void {
-  for (const node of order) {
-    // Total float: slipping more than this pushes the project's finish date.
-    node.totalFloat = node.latestStart - node.earliestStart;
-    node.freeFloat = freeFloatOf(node);
+export function computeFloats(network: Network): void {
+  for (const activity of network.activities) {
+    // Total float: slipping more than this moves the project's finish.
+    activity.totalFloat = activity.latestStart - activity.earliestStart;
+    activity.freeFloat = freeFloatOf(activity);
   }
 }
 
 /**
- * Free float: how much a task can slip before the earliest start of any
- * successor moves.
+ * Free float: how much an activity can slip before anything it constrains has
+ * to move.
  *
- * It starts at the total float and only ever narrows, which covers two cases at
- * once. A task with no successors has nothing but the project's end ahead of it,
- * which total float already measures. And a task whose successor may start
- * before it finishes — a lead, written as a negative lag — could otherwise be
- * told it has more free float than total float, promising room that delaying it
- * would take out of the project's own finish date.
+ * It starts at the total float and only narrows, which covers three cases in one
+ * line. An activity with no successors has only the project's end ahead of it —
+ * and the edge to the project's finish says exactly that. An activity whose
+ * successor may start before it ends could otherwise be told it has room that
+ * delaying it would take out of the project's finish date. And an activity with
+ * a date of its own cannot slip past it, whatever its successors allow.
  */
-function freeFloatOf(node: Node): number {
-  let free = node.totalFloat;
+function freeFloatOf(activity: Node): number {
+  let free = activity.totalFloat;
 
-  for (const link of node.successors) {
-    const slack = link.successor.earliestStart - startAfter(node.earliestFinish, link.lag);
+  for (const edge of activity.outgoing) {
+    const slack = edge.to.earliestStart - (activity.earliestStart + edge.lag);
     if (slack < free) free = slack;
   }
 

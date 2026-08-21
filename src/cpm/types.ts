@@ -2,9 +2,11 @@ import type { WorkingCalendar } from '../calendar/types.js';
 import type { ISODate } from '../day.js';
 
 /**
- * Kinds of dependency between two tasks. Only finish-to-start is computed in
- * this version; the others are named so that schedules can already carry them,
- * and are reported as unsupported rather than silently ignored.
+ * Which end of an activity a relation attaches to.
+ *
+ * The four classical dependency types are just the four ways of pairing the two
+ * ends: a relation leaves the predecessor's start or finish, and arrives at the
+ * successor's start or finish.
  */
 export const DependencyType = {
   FinishToStart: 'FS',
@@ -15,46 +17,69 @@ export const DependencyType = {
 
 export type DependencyType = (typeof DependencyType)[keyof typeof DependencyType];
 
-/** A link from a predecessor task to the task that declares it. */
+/** A temporal relation between two activities. */
 export interface Dependency {
   readonly predecessorId: string;
-  /** Defaults to finish-to-start, the only kind supported in this version. */
+  /** Defaults to finish-to-start. */
   readonly type?: DependencyType;
   /**
-   * Working days inserted between the predecessor's finish and this task's
-   * start. `0` means the day right after; negative values overlap the tasks.
+   * The *minimum* distance the relation imposes, in working days. `0` is the
+   * tightest the relation allows; negative values overlap the two activities.
    */
   readonly lag?: number;
+  /**
+   * The *maximum* distance the relation allows, in working days, if it is
+   * bounded. Where `lag` says "no sooner than", this says "no later than", and
+   * the pair together is a time window. Omit it for the usual one-sided
+   * relation.
+   */
+  readonly maxLag?: number;
+}
+
+/**
+ * Dates an activity is pinned between, if any.
+ *
+ * Each of the four is an ordinary temporal constraint against the project's
+ * start, so they cost nothing extra: the engine turns them into the same kind of
+ * edge a relation becomes. A date that is not a working day is moved inward to
+ * the nearest one, so a window never admits a day the calendar does not have.
+ */
+export interface TimeWindow {
+  readonly startNotBefore?: ISODate;
+  readonly startNotAfter?: ISODate;
+  readonly finishNotBefore?: ISODate;
+  readonly finishNotAfter?: ISODate;
 }
 
 export interface Task {
   readonly id: string;
-  /** Working days the task takes. `0` marks a milestone. */
+  /** Working days the activity takes. `0` marks a milestone. */
   readonly duration: number;
   readonly dependencies?: readonly Dependency[];
+  readonly window?: TimeWindow;
 }
 
 export interface ScheduleInput {
   readonly tasks: readonly Task[];
   readonly calendar: WorkingCalendar;
-  /** No task may start before this date. */
+  /** No activity may start before this date. */
   readonly projectStart: ISODate;
 }
 
 export interface ScheduledTask {
   readonly id: string;
   readonly duration: number;
-  /** Earliest the task can start without breaking any dependency. */
+  /** Earliest the activity can start with every constraint satisfied. */
   readonly earliestStart: ISODate;
   readonly earliestFinish: ISODate;
-  /** Latest the task can start without delaying the project. */
+  /** Latest it can start without moving the project's finish. */
   readonly latestStart: ISODate;
   readonly latestFinish: ISODate;
-  /** Working days the task can slip before the project finishes later. */
+  /** Working days it can slip before the project's finish moves. */
   readonly totalFloat: number;
-  /** Working days the task can slip before any successor starts later. */
+  /** Working days it can slip before any successor has to move. */
   readonly freeFloat: number;
-  /** True when the task has no total float: any delay delays the project. */
+  /** True when the activity has no total float. */
   readonly isCritical: boolean;
 }
 
@@ -63,10 +88,25 @@ export interface Schedule {
   readonly finish: ISODate;
   /** Working days from the project's start to its finish, both included. */
   readonly duration: number;
-  /** Every task, in the order it was given. */
+  /** Every activity, in the order it was given. */
   readonly tasks: readonly ScheduledTask[];
-  /** Ids of the tasks with zero total float, in dependency order. */
+  /** Ids of the activities with zero total float, in dependency order. */
   readonly criticalPath: readonly string[];
+}
+
+/**
+ * How the project's duration reacts to one activity taking a day more or a day
+ * less. See `analyzeSensitivity`.
+ */
+export interface TaskSensitivity {
+  readonly id: string;
+  /** Change in project duration if this activity took one working day more. */
+  readonly ifOneDayLonger: number;
+  /**
+   * Change in project duration if it took one working day less, or `0` for a
+   * milestone, which cannot be shortened.
+   */
+  readonly ifOneDayShorter: number;
 }
 
 export type ScheduleIssue =
@@ -99,6 +139,14 @@ export type ScheduleIssue =
       readonly message: string;
     }
   | {
+      readonly code: 'contradictory-lag';
+      readonly taskId: string;
+      readonly predecessorId: string;
+      readonly lag: number;
+      readonly maxLag: number;
+      readonly message: string;
+    }
+  | {
       readonly code: 'unknown-predecessor';
       readonly taskId: string;
       readonly predecessorId: string;
@@ -110,16 +158,37 @@ export type ScheduleIssue =
       readonly message: string;
     }
   | {
-      readonly code: 'unsupported-dependency-type';
+      readonly code: 'invalid-window';
       readonly taskId: string;
-      readonly predecessorId: string;
-      readonly type: string;
+      readonly field: keyof TimeWindow;
+      readonly value: string;
       readonly message: string;
     }
   | {
+      readonly code: 'window-outside-calendar';
+      readonly taskId: string;
+      readonly field: keyof TimeWindow;
+      readonly value: ISODate;
+      readonly message: string;
+    }
+  | {
+      /**
+       * The activities depend on each other in a circle that cannot be
+       * satisfied. Not every circle is one: a loop whose lags cancel out is a
+       * legitimate pair of activities pinned to each other.
+       */
       readonly code: 'circular-dependency';
-      /** The tasks forming the cycle: the last one depends on the first. */
       readonly cycle: readonly string[];
+      /** Working days by which the circle overshoots being satisfiable. */
+      readonly excess: number;
+      readonly message: string;
+    }
+  | {
+      /** A date window that no schedule can meet. */
+      readonly code: 'impossible-time-window';
+      readonly cycle: readonly string[];
+      /** Working days by which the window is missed. */
+      readonly excess: number;
       readonly message: string;
     }
   | {

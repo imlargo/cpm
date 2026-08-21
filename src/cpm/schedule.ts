@@ -3,23 +3,20 @@ import type { Position, WorkingCalendar } from '../calendar/types.js';
 import { formatISODate, parseISODate, type Day } from '../day.js';
 import { failure, success, type Result } from '../result.js';
 
-import { backwardPass } from './backward.js';
 import { computeFloats } from './float.js';
-import { forwardPass } from './forward.js';
-import { buildGraph, type Node } from './graph.js';
-import { circularDependency, outsideCalendarRange } from './issues.js';
-import { findCycles, topologicalOrder } from './topology.js';
+import { solveTimes } from './longest-path.js';
+import { buildNetwork, type Network, type Node } from './network.js';
 import type { Schedule, ScheduleInput, ScheduleIssue, ScheduledTask } from './types.js';
 
 /**
- * Runs the Critical Path Method over a set of tasks.
+ * Runs the Critical Path Method over a set of activities.
  *
  * The input is only read: the same input always produces the same schedule, and
  * anything wrong with it comes back as issues instead of an exception.
  *
  * The calendar is consulted twice — once to place the project's start, once to
- * turn the answer back into dates. Everything in between is arithmetic on
- * working-day positions.
+ * turn the answer back into dates. Everything in between is integer arithmetic
+ * on working-day positions.
  */
 export function calculateSchedule(input: ScheduleInput): Result<Schedule, ScheduleIssue> {
   const { calendar, tasks } = input;
@@ -27,24 +24,23 @@ export function calculateSchedule(input: ScheduleInput): Result<Schedule, Schedu
   const projectStart = startPositionOf(calendar, input.projectStart);
   if (!projectStart.ok) return projectStart;
 
-  const graph = buildGraph(tasks);
-  if (!graph.ok) return graph;
+  const network = buildNetwork(tasks, calendar, projectStart.value.position);
+  if (!network.ok) return network;
 
-  const nodes = graph.value;
-  if (nodes.length === 0) return success(emptySchedule(projectStart.value.day));
+  if (network.value.activities.length === 0) {
+    return success(emptySchedule(projectStart.value.day));
+  }
 
-  const order = topologicalOrder(nodes);
-  if (order === undefined) return failure(findCycles(nodes).map(circularDependency));
+  const issues = solveTimes(network.value);
+  if (issues.length > 0) return failure(issues);
 
-  forwardPass(order, projectStart.value.position);
-  backwardPass(order, lastFinishOf(nodes));
-  computeFloats(order);
+  computeFloats(network.value);
 
-  return assemble(nodes, order, calendar);
+  return assemble(network.value, calendar, projectStart.value.position);
 }
 
 /** Where the project starts: the first working day on or after the date asked for. */
-function startPositionOf(
+export function startPositionOf(
   calendar: WorkingCalendar,
   projectStart: string,
 ): Result<{ readonly day: Day; readonly position: Position }, ScheduleIssue> {
@@ -77,28 +73,37 @@ function startPositionOf(
 /**
  * Turns the positions the passes produced back into dates.
  *
- * This is where a schedule that outgrows its calendar is caught: the backward
- * pass can only land inside it, so anything outside is work running past the
- * calendar's last day.
+ * Network positions count from the project's start, so this is where they become
+ * absolute — and where a schedule that outgrows its calendar is caught.
  */
 function assemble(
-  nodes: readonly Node[],
-  order: readonly Node[],
+  network: Network,
   calendar: WorkingCalendar,
+  origin: Position,
 ): Result<Schedule, ScheduleIssue> {
   const issues: ScheduleIssue[] = [];
   const scheduled: ScheduledTask[] = [];
 
-  for (const node of nodes) {
-    const task = toScheduledTask(node, calendar);
-    if (task === undefined) issues.push(outsideCalendarRange(node.id));
-    else scheduled.push(task);
+  for (const activity of network.activities) {
+    const task = toScheduledTask(activity, calendar, origin);
+    if (task === undefined) {
+      issues.push({
+        code: 'outside-calendar-range',
+        taskId: activity.id,
+        message: `Task "${activity.id}" runs past the end of the calendar: widen its range to cover the whole project.`,
+      });
+    } else {
+      scheduled.push(task);
+    }
   }
 
-  const start = firstStartOf(nodes);
-  const finish = lastFinishOf(nodes);
-  const startDay = workingDayAt(calendar, start);
-  const finishDay = workingDayAt(calendar, finish);
+  const start = network.activities.reduce(
+    (earliest, activity) => Math.min(earliest, activity.earliestStart),
+    Number.POSITIVE_INFINITY,
+  );
+  const finish = network.finish;
+  const startDay = workingDayAt(calendar, origin + start);
+  const finishDay = workingDayAt(calendar, origin + finish);
 
   if (issues.length > 0 || startDay === undefined || finishDay === undefined) {
     return failure(issues);
@@ -109,15 +114,35 @@ function assemble(
     finish: formatISODate(finishDay),
     duration: finish - start + 1,
     tasks: scheduled,
-    criticalPath: order.filter((node) => node.totalFloat === 0).map((node) => node.id),
+    criticalPath: criticalPathOf(network),
   });
 }
 
-function toScheduledTask(node: Node, calendar: WorkingCalendar): ScheduledTask | undefined {
-  const earliestStart = workingDayAt(calendar, node.earliestStart);
-  const earliestFinish = workingDayAt(calendar, node.earliestFinish);
-  const latestStart = workingDayAt(calendar, node.latestStart);
-  const latestFinish = workingDayAt(calendar, node.latestFinish);
+/**
+ * The activities without float, earliest first.
+ *
+ * Dependency order would say the same thing while the network is acyclic, but a
+ * maximum lag can make circles legitimate, and then there is no such order.
+ * Reading them by their earliest start always works and agrees with dependency
+ * order wherever both are defined. Sorting is stable, so activities that start
+ * on the same day keep the order they were given.
+ */
+function criticalPathOf(network: Network): string[] {
+  return network.activities
+    .filter((activity) => activity.totalFloat === 0)
+    .sort((left, right) => left.earliestStart - right.earliestStart)
+    .map((activity) => activity.id);
+}
+
+function toScheduledTask(
+  activity: Node,
+  calendar: WorkingCalendar,
+  origin: Position,
+): ScheduledTask | undefined {
+  const earliestStart = workingDayAt(calendar, origin + activity.earliestStart);
+  const earliestFinish = workingDayAt(calendar, origin + activity.earliestStart + activity.span);
+  const latestStart = workingDayAt(calendar, origin + activity.latestStart);
+  const latestFinish = workingDayAt(calendar, origin + activity.latestStart + activity.span);
 
   if (
     earliestStart === undefined ||
@@ -129,30 +154,16 @@ function toScheduledTask(node: Node, calendar: WorkingCalendar): ScheduledTask |
   }
 
   return {
-    id: node.id,
-    duration: node.duration,
+    id: activity.id,
+    duration: activity.duration,
     earliestStart: formatISODate(earliestStart),
     earliestFinish: formatISODate(earliestFinish),
     latestStart: formatISODate(latestStart),
     latestFinish: formatISODate(latestFinish),
-    totalFloat: node.totalFloat,
-    freeFloat: node.freeFloat,
-    isCritical: node.totalFloat === 0,
+    totalFloat: activity.totalFloat,
+    freeFloat: activity.freeFloat,
+    isCritical: activity.totalFloat === 0,
   };
-}
-
-function firstStartOf(nodes: readonly Node[]): Position {
-  return nodes.reduce(
-    (earliest, node) => (node.earliestStart < earliest ? node.earliestStart : earliest),
-    Number.POSITIVE_INFINITY,
-  );
-}
-
-function lastFinishOf(nodes: readonly Node[]): Position {
-  return nodes.reduce(
-    (latest, node) => (node.earliestFinish > latest ? node.earliestFinish : latest),
-    Number.NEGATIVE_INFINITY,
-  );
 }
 
 function emptySchedule(projectStart: Day): Schedule {

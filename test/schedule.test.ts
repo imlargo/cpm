@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { calculateSchedule, defineCalendar, type Schedule, type Task } from '../src/index.js';
 
-import { colombiaCalendar, COLOMBIA_SPEC } from './support/calendar.js';
+import { fixtureCalendar, HOLIDAY_SPEC } from './support/calendar.js';
 
-const calendar = colombiaCalendar();
+const calendar = fixtureCalendar();
 
 /** Runs the engine, failing the test with the issues if it could not schedule. */
 function schedule(tasks: readonly Task[], projectStart = '2026-02-02'): Schedule {
@@ -172,7 +172,7 @@ describe('lag', () => {
 
 describe('a lag that reaches outside the calendar', () => {
   const tightCalendar = defineCalendar({
-    ...COLOMBIA_SPEC,
+    ...HOLIDAY_SPEC,
     from: '2026-02-02', // the project's own start date
     to: '2026-12-31',
   });
@@ -250,7 +250,9 @@ describe('circular dependencies', () => {
     expect(issue.message).toContain('circle');
   });
 
-  it('reports each cycle once', () => {
+  it('reports one impossible circle at a time, with what it overshoots by', () => {
+    // Two independent circles. One conflict is enough to prove the schedule
+    // impossible; fixing it reveals the other.
     const result = calculateSchedule({
       calendar,
       projectStart: '2026-02-02',
@@ -264,7 +266,14 @@ describe('circular dependencies', () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.issues).toHaveLength(2);
+    expect(result.issues).toHaveLength(1);
+
+    const [issue] = result.issues;
+    if (issue?.code !== 'circular-dependency') throw new Error('expected a circle');
+    // Each activity takes a day, so the pair asks for two days of separation
+    // that it does not have.
+    expect(issue.excess).toBe(2);
+    expect(issue.cycle).toHaveLength(2);
   });
 });
 
@@ -306,13 +315,13 @@ describe('invalid input', () => {
     ).toEqual(['invalid-lag']);
   });
 
-  it('reports dependency types this version does not compute', () => {
+  it('reports a maximum that contradicts its own minimum', () => {
     expect(
       issuesOf([
         { id: 'a', duration: 1 },
-        { id: 'b', duration: 1, dependencies: [{ predecessorId: 'a', type: 'SS' }] },
+        { id: 'b', duration: 1, dependencies: [{ predecessorId: 'a', lag: 5, maxLag: 3 }] },
       ]),
-    ).toEqual(['unsupported-dependency-type']);
+    ).toEqual(['contradictory-lag']);
   });
 
   it('collects every problem instead of stopping at the first', () => {
@@ -332,7 +341,7 @@ describe('invalid input', () => {
   });
 
   it('reports work that runs past the end of the calendar', () => {
-    const january = defineCalendar({ ...COLOMBIA_SPEC, from: '2026-01-01', to: '2026-01-31' });
+    const january = defineCalendar({ ...HOLIDAY_SPEC, from: '2026-01-01', to: '2026-01-31' });
     expect(january.ok).toBe(true);
     if (!january.ok) return;
 
@@ -361,7 +370,7 @@ describe('schedules far larger than a spreadsheet', () => {
           : [{ predecessorId: `t${String(index - 1)}` }],
     }));
 
-  const decades = defineCalendar({ ...COLOMBIA_SPEC, from: '2000-01-01', to: '2090-12-31' });
+  const decades = defineCalendar({ ...HOLIDAY_SPEC, from: '2000-01-01', to: '2090-12-31' });
 
   it('schedules ten thousand tasks in one chain', () => {
     expect(decades.ok).toBe(true);

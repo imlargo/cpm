@@ -14,9 +14,9 @@ import {
   type CalendarSpec,
 } from '../src/index.js';
 
-import { colombiaCalendar, COLOMBIA_SPEC, day } from './support/calendar.js';
+import { fixtureCalendar, HOLIDAY_SPEC, day } from './support/calendar.js';
 
-const calendar = colombiaCalendar();
+const calendar = fixtureCalendar();
 
 /** Reads a calendar answer back as a date, so failures print dates. */
 function iso(value: number | undefined): string | undefined {
@@ -24,7 +24,7 @@ function iso(value: number | undefined): string | undefined {
 }
 
 describe('countWorkingDays', () => {
-  it('counts the working days of a real Colombian year end', () => {
+  it('counts the working days across a holiday and two weekends', () => {
     // 29, 30 and 31 December plus 2 January: the 1st is a holiday.
     expect(countWorkingDays(calendar, day('2025-12-29'), day('2026-01-02'))).toBe(4);
   });
@@ -58,7 +58,7 @@ describe('isWorkingDay', () => {
   it('follows the holidays it was given', () => {
     expect(isWorkingDay(calendar, day('2026-01-01'))).toBe(false);
     expect(isWorkingDay(calendar, day('2026-01-12'))).toBe(false);
-    expect(isWorkingDay(calendar, day('2026-01-06'))).toBe(true); // not a holiday in Colombia
+    expect(isWorkingDay(calendar, day('2026-01-06'))).toBe(true); // a Tuesday, not listed
   });
 
   it('is false outside the calendar', () => {
@@ -67,7 +67,7 @@ describe('isWorkingDay', () => {
 
   it('honours extra working days over weekends and holidays', () => {
     const result = defineCalendar({
-      ...COLOMBIA_SPEC,
+      ...HOLIDAY_SPEC,
       extraWorkingDays: ['2026-02-07'], // a recovered Saturday
     });
     expect(result.ok).toBe(true);
@@ -168,7 +168,7 @@ describe('defineCalendar', () => {
   });
 
   it('rejects a range that ends before it starts', () => {
-    const result = defineCalendar({ ...COLOMBIA_SPEC, from: '2026-06-01', to: '2026-01-01' });
+    const result = defineCalendar({ ...HOLIDAY_SPEC, from: '2026-06-01', to: '2026-01-01' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.issues[0]?.code).toBe('invalid-range');
@@ -176,7 +176,7 @@ describe('defineCalendar', () => {
 
   it('rejects a date that is both a holiday and an extra working day', () => {
     const result = defineCalendar({
-      ...COLOMBIA_SPEC,
+      ...HOLIDAY_SPEC,
       holidays: ['2026-01-01'],
       extraWorkingDays: ['2026-01-01'],
     });
@@ -198,14 +198,14 @@ describe('defineCalendar', () => {
   });
 
   it('rejects a range longer than a century', () => {
-    const result = defineCalendar({ ...COLOMBIA_SPEC, from: '1900-01-01', to: '2100-01-01' });
+    const result = defineCalendar({ ...HOLIDAY_SPEC, from: '1900-01-01', to: '2100-01-01' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.issues[0]?.code).toBe('range-too-large');
   });
 
   it('ignores exceptions that fall outside the range', () => {
-    const result = defineCalendar({ ...COLOMBIA_SPEC, holidays: ['2019-07-20'] });
+    const result = defineCalendar({ ...HOLIDAY_SPEC, holidays: ['2019-07-20'] });
     expect(result.ok).toBe(true);
   });
 });

@@ -38,6 +38,7 @@ export {
 } from './calendar/arithmetic.js';
 
 export { calculateSchedule } from './cpm/schedule.js';
+export { analyzeSensitivity } from './cpm/sensitivity.js';
 export {
   DependencyType,
   type Dependency,
@@ -46,4 +47,6 @@ export {
   type ScheduleIssue,
   type ScheduledTask,
   type Task,
+  type TaskSensitivity,
+  type TimeWindow,
 } from './cpm/types.js';
